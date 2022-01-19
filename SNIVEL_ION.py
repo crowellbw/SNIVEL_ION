@@ -19,7 +19,7 @@ from scipy.optimize import lsq_linear
 #Input files of testing sites and testing dates is required, the format is rather simple
 #Follow the examples provided
 #####################################################################################
-event='tonga'
+event='calbuco'
 c = 299792458.0 #speed of light
 fL1 = 1575.42e6 #L1 frequency
 fL2 = 1227.60e6 #L2 frequency
