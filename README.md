@@ -17,3 +17,5 @@ The ioncorr file has the following columns:
 
 GPS time, satellite, variometric TEC, filtered variometric TEC, absolute TEC, filtered absolute TEC, latitude piercing point, longitude piercing point, azimuth, elevation angle, distance to piercing point from source
 
+The filtered time series use a 2 to 10 mHz bandpass filter.
+
