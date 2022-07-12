@@ -514,12 +514,12 @@ def filter_int_VTEC(ionfile,site,doy,year,event,samplerate):
         difft = numpy.diff(gpst[a1])
         adiff = numpy.where(difft > 1/samplerate)[0]
         #print (len(adiff))
-        if (len(a1) >= 120):
+        if (len(a1) >= 240):
             pvTEC = numpy.polyfit(indx[a1],vTEC[a1],8)
             vTECmodel = numpy.polyval(pvTEC, indx[a1])
             vTECcorr = vTEC[a1] - vTECmodel
             vTEC_int = scipy.integrate.cumtrapz(vTECcorr,gpst[a1])
-            bf, af = butter(4, [2/1000/0.5/samplerate, 10/1000/0.5/samplerate],btype='band')
+            bf, af = butter(4, [0.5/1000/0.5/samplerate, 10/1000/0.5/samplerate],btype='band')
             vTEC_int_filt = filtfilt(bf,af,vTEC_int-vTEC_int[0])
             
             paTEC = numpy.polyfit(indx[a1],aTEC[a1],8)
