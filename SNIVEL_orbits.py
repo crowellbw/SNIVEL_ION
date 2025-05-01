@@ -52,7 +52,7 @@ def bcorbit(nav, svn, tsv, x0, y0, z0):
     ####################################################
     dt = 0
     ti = tsv
-    while dt < 3:
+    while dt < 1:
         #mean angular motion
         n0 = math.sqrt(mu/math.pow(a,3))
         n = n0+dn
@@ -310,4 +310,3 @@ def sp3interp(tt, satnum, PRN,  gpst, xpos, ypos, zpos, satclock, delta_tr, x0, 
         
 
     return(xnew, ynew, zpred, cpred, rclock, rho, rpath)
-
