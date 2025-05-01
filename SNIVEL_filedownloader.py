@@ -52,7 +52,27 @@ def getbcorbit(year, doy):
             os.system('mv '+ 'brdc' + doy + '0.' +  year[-2:] + 'n.Z nav')
             os.system('gunzip' + ' ' + fnameZ)
 
-
+def getrinexNGS(site,year,doy):
+    if not os.path.exists('rinex'): #if rinex folder doesn't exist, make it
+        os.makedirs('rinex')
+    fnamegz = 'rinex/' + site + doy + '0.' +  year[-2:] + 'd.gz'
+    fnameogz = 'rinex/' + site + doy + '0.' +  year[-2:] + 'o.gz'
+    fnameZ = 'rinex/' + site + doy + '0.' +  year[-2:] + 'd.Z'
+    fnamebz2 = 'rinex/' + site + doy + '0.' +  year[-2:] + 'd.bz2'
+    fnamed = 'rinex/' + site + doy + '0.' +  year[-2:] + 'd'
+    fnameo = 'rinex/' + site + doy + '0.' +  year[-2:] + 'o'
+    if (os.path.isfile(fnameo) == True):
+        print ('Rinex file ' + fnameo + ' already exists')
+    else:
+        try:
+            url = 'https://geodesy.noaa.gov/corsdata/rinex/' + year + '/' + doy + '/' + site + '/' + site + doy + '0.' +  year[-2:] + 'd.gz'
+            print ('Attempting to download ' + fnamed + ' from NGS')
+            wget.download(url, out='rinex/')
+            os.system('gunzip' + ' ' + fnamegz)
+            os.system('./crx2rnx' + ' ' + fnamed)
+            os.remove(fnamed)
+        except Exception:
+            pass
 
 #This subroutine will download RINEX files given the station, year and day of year. 
 def getrinex(site, year, doy):
