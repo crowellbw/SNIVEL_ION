@@ -9,6 +9,8 @@ import scipy
 from scipy.signal import butter, lfilter, filtfilt
 import matplotlib.pyplot as plt
 from obspy.io.sac import SACTrace
+import matplotlib.pyplot as plt
+import geopy.distance
 #####################################################################################
 #SNIVEL_tools.py
 #Written by Brendan Crowell, University of Washington
@@ -18,7 +20,7 @@ c = 299792458.0 #speed of light
 fL1 = 1575.42e6 #L1 frequency
 fL2 = 1227.60e6 #L2 frequency
 # Print iterations progress
-def printProgressBar (iteration, total, prefix = '', suffix = '', decimals = 1, length = 100, fill = '█', printEnd = "\r"):
+def printProgressBar (iteration, total, prefix = '', suffix = '', decimals = 1, length = 100, fill = 'â–ˆ', printEnd = "\r"):
     """
     Call in a loop to create terminal progress bar
     @params:
@@ -492,8 +494,8 @@ def lowpass(data,fcorner,fsample,order,zerophase=True):
     from scipy.signal import butter, filtfilt, lfilter
 
 
-def filter_int_VTEC(ionfile,site,doy,year,event,samplerate):
-    b = numpy.loadtxt('loc_' + event + '.txt')
+def filter_int_VTEC(ionfile,site,doy,year,event,samplerate,homedir):
+    b = numpy.loadtxt(homedir+'loc_' + event + '.txt')
     [xs,ys,zs]=lla2ecef(float(b[1]),float(b[0]),0)
     a = numpy.loadtxt(ionfile)
     indx = a[:,0]
@@ -513,24 +515,26 @@ def filter_int_VTEC(ionfile,site,doy,year,event,samplerate):
         a1 = numpy.where(uniquesats[i] == snum)[0]
         difft = numpy.diff(gpst[a1])
         adiff = numpy.where(difft > 1/samplerate)[0]
-        #print (len(adiff))
-        if (len(a1) >= 240):
+        if (len(adiff) == 0 and len(a1) >= 240):
             pvTEC = numpy.polyfit(indx[a1],vTEC[a1],8)
             vTECmodel = numpy.polyval(pvTEC, indx[a1])
             vTECcorr = vTEC[a1] - vTECmodel
             vTEC_int = scipy.integrate.cumtrapz(vTECcorr,gpst[a1])
-            bf, af = butter(4, [0.5/1000/0.5/samplerate, 10/1000/0.5/samplerate],btype='band')
+            bf, af = butter(4, [0.5/1000, 10/1000],btype='band',fs=samplerate)
             vTEC_int_filt = filtfilt(bf,af,vTEC_int-vTEC_int[0])
             
             paTEC = numpy.polyfit(indx[a1],aTEC[a1],8)
             aTECmodel = numpy.polyval(paTEC, indx[a1])
             aTECcorr = aTEC[a1] - aTECmodel
             aTECcorr_filt = filtfilt(bf,af,aTECcorr-aTECcorr[0])
-
+            plotvTEC(event,site,"{0:.0f}".format(float(uniquesats[i])),gpst[a1],vTEC_int_filt,0) 
             for j in range (1,len(a1)):
-                #print(latsta,lonsta,latpp[a1[j]],lonpp[a1[j]])
                 [xpp,ypp,zpp] = lla2ecef(float(latpp[a1[j]]),float(lonpp[a1[j]]),0)
-                distPP = math.sqrt(math.pow(xs-xpp,2)+math.pow(ys-ypp,2)+math.pow(zs-zpp,2))/1000
+                coord1 = (float(latpp[a1[j]]),float(lonpp[a1[j]]))
+                coord2 = (float(b[1]),float(b[0]))
+
+                distPP = geopy.distance.distance(coord1,coord2).km
+                #distPP = math.sqrt(math.pow(xs-xpp,2)+math.pow(ys-ypp,2)+math.pow(zs-zpp,2))/1000
                 dPP = "{0:.2f}".format(float(distPP))
                 loPP = "{0:.4f}".format(float(lonpp[a1[j]]))
                 laPP = "{0:.4f}".format(float(latpp[a1[j]]))
@@ -543,6 +547,67 @@ def filter_int_VTEC(ionfile,site,doy,year,event,samplerate):
                 t = "{0:.2f}".format(float(gpst[a1[j]]))
                 sat = "{0:.0f}".format(float(snum[a1[j]]))            
                 ffo.write(t+' '+sat+' '+vTEC2+' '+vTECfilt+' '+aTEC2+' '+aTECfilt+' '+laPP+' '+loPP+' '+az+' '+el+' '+dPP+'\n')
+        elif (len(adiff) > 0):
+            ADIFF = list()
+            ADIFF.append(0)
+            for j in range(0, len(adiff)):
+                ADIFF.append(adiff[j])
+            ADIFF.append(len(a1))
+            print(ADIFF)
+            for j in range(1, len(ADIFF)):
+                print(j)
+                VTEC = vTEC[a1[ADIFF[j-1]:ADIFF[j]]]
+                ATEC = aTEC[a1[ADIFF[j-1]:ADIFF[j]]]
+                INDX = indx[a1[ADIFF[j-1]:ADIFF[j]]]
+                GPST = gpst[a1[ADIFF[j-1]:ADIFF[j]]]
+                LATPP = latpp[a1[ADIFF[j-1]:ADIFF[j]]]
+                LONPP = lonpp[a1[ADIFF[j-1]:ADIFF[j]]]
+                ELEV = elev[a1[ADIFF[j-1]:ADIFF[j]]]
+                AZIM = azim[a1[ADIFF[j-1]:ADIFF[j]]]
+                if (len(INDX) >= 240):
+                    pvTEC = numpy.polyfit(INDX,VTEC,8)
+                    vTECmodel = numpy.polyval(pvTEC, INDX)
+                    vTECcorr = VTEC - vTECmodel
+                    vTEC_int = scipy.integrate.cumtrapz(vTECcorr,GPST)
+                    bf, af = butter(4, [0.5/1000, 10/1000],btype='band',fs=samplerate)
+                    vTEC_int_filt = filtfilt(bf,af,vTEC_int-vTEC_int[0])
+
+                    paTEC = numpy.polyfit(INDX,ATEC,8)
+                    aTECmodel = numpy.polyval(paTEC, INDX)
+                    aTECcorr = ATEC - aTECmodel
+                    aTECcorr_filt = filtfilt(bf,af,aTECcorr-aTECcorr[0])
+                    plotvTEC(event,site,"{0:.0f}".format(float(uniquesats[i])),GPST,vTEC_int,j-1) 
+                    for k in range (1,len(GPST)):
+                        [xpp,ypp,zpp] = lla2ecef(float(LATPP[k]),float(LONPP[k]),0)
+                        distPP = math.sqrt(math.pow(xs-xpp,2)+math.pow(ys-ypp,2)+math.pow(zs-zpp,2))/1000
+                        dPP = "{0:.2f}".format(float(distPP))
+                        loPP = "{0:.4f}".format(float(LONPP[k]))
+                        laPP = "{0:.4f}".format(float(LATPP[k]))
+                        vTECfilt = "{0:.5e}".format(float(vTEC_int_filt[k-1]))
+                        aTECfilt = "{0:.5e}".format(float(aTECcorr_filt[k]))
+                        vTEC2 = "{0:.5e}".format(float(vTEC_int[k-1]))
+                        aTEC2 = "{0:.5e}".format(float(aTECcorr[k]))
+                        el = "{0:.2f}".format(float(ELEV[k]))
+                        az = "{0:.2f}".format(float(AZIM[k]))
+                        t = "{0:.2f}".format(float(GPST[k]))
+                        sat = "{0:.0f}".format(float(uniquesats[i]))            
+                        ffo.write(t+' '+sat+' '+vTEC2+' '+vTECfilt+' '+aTEC2+' '+aTECfilt+' '+laPP+' '+loPP+' '+az+' '+el+' '+dPP+'\n')
+
+
     ffo.close()
 
-#filter_int_VTEC('output/ion_tong_015_2022.txt','tong','015','2022','tonga',1)
+
+def plotvTEC(event,site,sat,t,vTECfilt,ind):
+    fname = 'output/fig/'+event+'/'+event+'_'+site+'_'+sat.zfill(2)+'_'+str(ind).zfill(2)+'.png'
+    tplot = t[1:len(t)]
+    print (fname)
+    #A=plt.magnitude_spectrum(vTECfilt, Fs=1/30)
+    #print(A[1])
+    plt.plot(tplot,vTECfilt)
+    plt.title(event+' '+site+' G'+sat.zfill(2))
+    plt.ylabel('Filtered TEC')
+    plt.xlabel('GPS Time')
+    plt.savefig(fname)
+    plt.clf()
+    plt.close()
+    return
