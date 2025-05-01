@@ -4,7 +4,7 @@ import math
 import georinex as gr
 import SNIVEL_orbits
 import datetime
-from SNIVEL_filedownloader import getbcorbit, getrinexhr, getrinex
+from SNIVEL_filedownloader import getbcorbit, getrinexhr, getrinex, getrinexNGS
 from SNIVEL_tools import azi_elev, klobuchar, ecef2lla, gpsweekdow, getklobucharvalues, niell, dxyz2dneu, printProgressBar, niell_wet
 from SNIVEL_tools import writesac, filter_int_VTEC
 import os
@@ -19,7 +19,8 @@ from scipy.optimize import lsq_linear
 #Input files of testing sites and testing dates is required, the format is rather simple
 #Follow the examples provided
 #####################################################################################
-event='calbuco'
+homedir='/home/crowellb/SNIVEL_ION_CURRENT/'
+event='greenland'
 c = 299792458.0 #speed of light
 fL1 = 1575.42e6 #L1 frequency
 fL2 = 1227.60e6 #L2 frequency
@@ -53,6 +54,10 @@ with open(sitefile, 'rt') as g:
                         #print('Processing station ', site, ' on year and  day ', year,  doy)
                         if not os.path.exists('output'): #if output folder doesn't exist, make it
                             os.makedirs('output')
+                        if not os.path.exists('output/fig'): #if output folder doesn't exist, make it
+                            os.makedirs('output/fig')
+                        if not os.path.exists('output/fig/'+event): #if output folder doesn't exist, make it
+                            os.makedirs('output/fig/'+event)
                         outfile = 'output/observables_' + site + '_' + doy + '_' + year + '.txt'
                         ffo = open(outfile,'w')
                         #obtain gps week and day of week for sp3 file download...not needed here
@@ -62,18 +67,20 @@ with open(sitefile, 'rt') as g:
 
                         getbcorbit(year, doy) #Download broadcast orbit
                         try:
-                            getrinex(site, year, doy) #Download RINEX
+                            getrinexNGS(site, year, doy) #Download RINEX
 
                             obsfile = 'rinex/' + site + doy + '0.' +  year[-2:] + 'o' #rinex file name
                             navfile = 'nav/brdc' + doy + '0.' +  year[-2:] + 'n' #broadcast navigation file name
 
                             #use teqc to convert the rinex to remove comments within and remove non gps satellites
                             #Also, the -st command sets the start time and +dm is the number of minutes to consider
+                            print('here')
                             os.system('./teqc -R -S -E -C -J -phc -st ' + st + ' +dm ' + nummin + ' ' + obsfile + ' > example.o')
+                            print('here')
                             #os.system('tac example.o | sed -e "/post/{N;d;}" | tac > example2.o') #remove the comment lines that teqc didn't remove
                             header=gr.rinexheader('example.o')#read the RINEX header
                             (x0,y0,z0)=header['position'] #use the a priori location of the site from the RINEX header. If its really bad, you might want to change it
-                            samfreq = header['interval'] #interval between observations
+                            samfreq = 30 #header['interval'] #interval between observations
                             sampersec = 1/float(samfreq)
                             [latsta,lonsta,altsta]=ecef2lla(float(x0),float(y0),float(z0)) #station lat and lon are needed for klobuchar correction
                             print (site, latsta*180/math.pi, lonsta*180/math.pi, altsta)
@@ -81,13 +88,16 @@ with open(sitefile, 'rt') as g:
                             [alpha,beta]=getklobucharvalues(navfile) #get klobuchar corrections from navigation file
 
                             obs = gr.load('example.o') #Load the RINEX file
-
+                            
                             L1 = obs['L1'].values#phase values
                             L2 = obs['L2'].values
                             S1 = obs['S1'].values
                             S2 = obs['S2'].values
 
                             obs_time = obs.time.values #observation times
+                            #samfreq = float(obs_time[1])-float(obs_time[0])
+                            #sampersec = 1/float(samfreq)
+                            print(sampersec)
                             nt = len(obs_time) #number of observation times
                             svs = obs.sv #satellites observed
                             ns = len(svs) #number of satellites observed
@@ -129,6 +139,10 @@ with open(sitefile, 'rt') as g:
                                             dzsat = "{0:.6f}".format(float((z0-z))) #distance between receiver and satellite in z
                                             s1 = "{0:.2f}".format(float(S1[i,j]))
                                             s2 = "{0:.2f}".format(float(S2[i,j]))
+                                            #s1 = "{0:.2f}".format(0)
+                                            #s2 = "{0:.2f}".format(0)
+
+
                                             latipp = "{0:.4f}".format(float(latIPP*180))
                                             lonipp = "{0:.4f}".format(float(lonIPP*180))
                                             ffo.write(str(i)+' '+gpst+' '+gpsw+' '+gpss+' '+svstrip+' '+rx0+' '+ry0+' '+rz0+' '+l1+' '+l2+' '+az+' '+el+' '+di1+' '+di2+' '+shd+' '+dxsat+' '+dysat+' '+dzsat+' '+swd+' '+s1+' '+s2+' '+latipp+' '+lonipp+'\n')
@@ -210,7 +224,7 @@ with open(sitefile, 'rt') as g:
                                             lonpp = "{0:.4f}".format(float(lonipp1[j]))
                                             ffo.write(str(i)+' '+satnum+' '+gpst+' '+aTEC+' '+vTEC+' '+elev+' '+azim+' '+latpp+' '+lonpp+'\n')
                             ffo.close()
-                            filter_int_VTEC(veloutfile,site,doy,year,event,sampersec)
+                            filter_int_VTEC(veloutfile,site,doy,year,event,sampersec,homedir)
                             print ('Station ', site, ' complete')
                         except Exception:
                             print ('Station ', site, ' not available on date ', str(year), ' ', str(doy))
