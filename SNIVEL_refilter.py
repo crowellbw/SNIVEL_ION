@@ -70,7 +70,7 @@ with open(sitefile, 'rt') as g:
                             header=gr.rinexheader('example.o')#read the RINEX header
                             (x0,y0,z0)=header['position'] #use the a priori location of the site from the RINEX header. If its really bad, you might want to change it
                             samfreq = header['interval'] #interval between observations
-                            sampersec = 1/float(15)
+                            sampersec = 1/float(samfreq)
                             [latsta,lonsta,altsta]=ecef2lla(float(x0),float(y0),float(z0)) #station lat and lon are needed for klobuchar correction
                             print (site, latsta*180/math.pi, lonsta*180/math.pi, altsta)
                             veloutfile = homedir+'output/ion_' + site + '_' + doy + '_' + year + '.txt'
